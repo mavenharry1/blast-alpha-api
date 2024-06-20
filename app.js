@@ -1,54 +1,27 @@
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
-const axios = require('axios');
 const app = express();
 const port = 3300;
 
 app.use(cors());
 app.use(express.json());
 
-const cache = {};
-const cacheDuration = 7 * 24 * 60 * 60 * 1000; // 7 days
 const reserveLimit = 12000;
 
-function fetchJSON(url) {
-  const currentTime = new Date().getTime();
-  if (cache[url] && (currentTime - cache[url].timestamp < cacheDuration)) {
-    return Promise.resolve(new Set(cache[url].data));
-  } else {
-    return axios.get(url)
-      .then(response => {
-        const dataSet = new Set(response.data.map(addr => addr.toLowerCase()));
-        cache[url] = {
-          data: dataSet,
-          timestamp: currentTime
-        };
-        return dataSet;
-      })
-      .catch(error => {
-        console.error(`Failed to fetch data from ${url}: ${error}`);
-        return new Set();
-      });
-  }
-}
-
 async function getAddressCategory(address) {
-  const partnersUrl = 'https://api.npoint.io/1b73518ed7c18a19be3e';
-  const earlyAdoptersUrl = 'https://api.npoint.io/38e4c7dfd7af5f838170';
-
   try {
-    const [partnersAddresses, earlyAdoptersAddresses] = await Promise.all([
-      fetchJSON(partnersUrl),
-      fetchJSON(earlyAdoptersUrl)
-    ]);
-    const isEligiblePartner = partnersAddresses.has(address);
-    const isEligibleEarlyAdopter = earlyAdoptersAddresses.has(address);
+    const partnersAddresses = new Set(JSON.parse(fs.readFileSync('./json/alpha-partners.json', 'utf8')).map(addr => addr.toLowerCase()));
+    const earlyAdoptersAddresses = new Set(JSON.parse(fs.readFileSync('./json/early-adopters.json', 'utf8')).map(addr => addr.toLowerCase()));
+    
+    const isEligiblePartner = partnersAddresses.has(address.toLowerCase());
+    const isEligibleEarlyAdopter = earlyAdoptersAddresses.has(address.toLowerCase());
     
     if(isEligiblePartner) return "partner";
     if(isEligibleEarlyAdopter) return "early";
     return null;
   } catch (error) {
+    console.log(error)
     return null;
   }
 }
