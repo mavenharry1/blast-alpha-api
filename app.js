@@ -16,8 +16,8 @@ let allowedAddressesFormatted = JSON.parse(fs.readFileSync("./json/allowed-list.
 allowedAddressesFormatted = Object.keys(allowedAddressesFormatted).map(key => ({ address: key.toLowerCase(), amount: allowedAddressesFormatted[key] }));
 
 const leaves = allowedAddressesFormatted.map(a => {
-  const addressHex = '0x' + a.address.substring(2).padStart(40, '0'); // Format address as 20-byte hex string
-  const amountHex = '0x' + a.amount.toString(16).padStart(64, '0'); // Format amount as uint256 hex string
+  const addressHex = '0x' + a.address.substring(2).padStart(40, '0');
+  const amountHex = '0x' + a.amount.toString(16).padStart(64, '0');
   return keccak256(Buffer.from(addressHex.replace('0x', '') + amountHex.replace('0x', ''), 'hex'));
 });
 const merkleTree = new MerkleTree(leaves, keccak256, {sortPairs: true});
@@ -82,10 +82,8 @@ app.get('/claim/:address', (req, res) => {
   const address = req.params.address.toLowerCase();
   const addressFound = allowedAddressesFormatted.find(v => v.address.toLowerCase() === address);
   const amount = addressFound?.amount || 0;
-
-  // Ensure the address is a 20-byte hex string and amount is a uint256 hex string
-  const addressHex = '0x' + address.substring(2).padStart(40, '0'); // Remove '0x' and pad
-  const amountHex = '0x' + amount.toString(16).padStart(64, '0'); // Convert to hex and pad
+  const addressHex = '0x' + address.substring(2).padStart(40, '0');
+  const amountHex = '0x' + amount.toString(16).padStart(64, '0');
 
   const hashedData = keccak256(Buffer.from(addressHex.replace('0x', '') + amountHex.replace('0x', ''), 'hex'));
   const proof = merkleTree.getHexProof(hashedData);

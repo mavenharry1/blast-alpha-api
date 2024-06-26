@@ -7965,17 +7965,17 @@ Object.keys(data).forEach(key => {
   const base = 30600;
   const value = data[key];
   if (value === 1) {
-    data[key] *= 1 * base;
+    data[key] = 1 * base;
   } else if (value >= 2 && value <= 3) {
-    data[key] *= 1.5 * base;
+    data[key] = 1.5 * base;
   } else if (value >= 4 && value <= 10) {
-    data[key] *= 2.5 * base;
+    data[key] = 2.5 * base;
   } else if (value >= 11 && value <= 25) {
-    data[key] *= 3.75 * base;
+    data[key] = 3.75 * base;
   } else if (value >= 26 && value <= 50) {
-    data[key] *= 7.5 * base;
+    data[key] = 7.5 * base;
   } else if (value >= 51) {
-    data[key] *= 10 * base;
+    data[key] = 10 * base;
   }
 });
 
