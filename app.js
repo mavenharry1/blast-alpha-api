@@ -2,12 +2,26 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const app = express();
+const {MerkleTree} = require("merkletreejs")
+const keccak256 = require("keccak256")
 const port = process.env.PORT || 7000;
 
 app.use(cors());
 app.use(express.json());
 
 const reserveLimit = 12000;
+const reservedSpotFile = 'reserved-spots.json';
+
+let allowedAddressesFormatted = JSON.parse(fs.readFileSync("./json/allowed-list.json", 'utf8'));
+allowedAddressesFormatted = Object.keys(allowedAddressesFormatted).map(key => ({ address: key.toLowerCase(), amount: allowedAddressesFormatted[key] }));
+
+const leaves = allowedAddressesFormatted.map(a => {
+  const addressHex = '0x' + a.address.substring(2).padStart(40, '0'); // Format address as 20-byte hex string
+  const amountHex = '0x' + a.amount.toString(16).padStart(64, '0'); // Format amount as uint256 hex string
+  return keccak256(Buffer.from(addressHex.replace('0x', '') + amountHex.replace('0x', ''), 'hex'));
+});
+const merkleTree = new MerkleTree(leaves, keccak256, {sortPairs: true});
+const rootHash = merkleTree.getHexRoot();
 
 async function getAddressCategory(address) {
   try {
@@ -25,8 +39,6 @@ async function getAddressCategory(address) {
     return null;
   }
 }
-
-const reservedSpotFile = 'reserved-spots.json';
 
 // Initialize the addresses file if it does not exist
 if (!fs.existsSync(reservedSpotFile)) {
@@ -60,6 +72,25 @@ app.get('/reserve/:address', (req, res) => {
   } else {
     res.json({ amount: 0, rate: (addresses.size / reserveLimit) * 100 });
   }
+});
+
+app.get('/claim/root', async (req, res) => {
+  res.json(rootHash);
+});
+
+app.get('/claim/:address', (req, res) => {
+  const address = req.params.address.toLowerCase();
+  const addressFound = allowedAddressesFormatted.find(v => v.address.toLowerCase() === address);
+  const amount = addressFound?.amount || 0;
+
+  // Ensure the address is a 20-byte hex string and amount is a uint256 hex string
+  const addressHex = '0x' + address.substring(2).padStart(40, '0'); // Remove '0x' and pad
+  const amountHex = '0x' + amount.toString(16).padStart(64, '0'); // Convert to hex and pad
+
+  const hashedData = keccak256(Buffer.from(addressHex.replace('0x', '') + amountHex.replace('0x', ''), 'hex'));
+  const proof = merkleTree.getHexProof(hashedData);
+
+  res.json({ amount, proof });
 });
 
 app.post('/reserve', async (req, res) => {
